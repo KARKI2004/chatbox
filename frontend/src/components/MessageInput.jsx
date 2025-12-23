@@ -1,5 +1,6 @@
 import React from 'react'
 import { useChatStore } from '../store/useChatStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { useState, useRef } from 'react';
 import { X, Image, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -8,6 +9,7 @@ const MessageInput = () => {
   const [text, setText] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
+  const { enterToSend } = useSettingsStore();
 
   const { sendMessage } = useChatStore();
 
@@ -31,7 +33,7 @@ const MessageInput = () => {
   };
 
   const handleSendMessage = async (e) =>{
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!text.trim() && !imagePreview) return;
     const messageData = { text };
 
@@ -75,12 +77,19 @@ const MessageInput = () => {
 
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
         <div className="flex-1 flex gap-2">
-          <input
-            type="text"
-            className="w-full input input-bordered rounded-lg input-sm sm:input-md"
+          <textarea
+            rows={1}
+            className="w-full textarea textarea-bordered rounded-lg text-sm sm:text-base min-h-[2.5rem]"
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (!enterToSend) return;
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
           />
           <input
             type="file"
@@ -104,7 +113,7 @@ const MessageInput = () => {
           className="btn btn-sm btn-circle"
           disabled={!text.trim() && !imagePreview}
         >
-          <Send size={22} />
+          <Send size={22} className="text-[rgb(176,154,204)]" />
         </button>
 
       </form>

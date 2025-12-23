@@ -2,11 +2,13 @@ import {create} from "zustand";
 import toast from "react-hot-toast";
 import axiosInstance from "../lib/axios";
 import {useAuthStore} from "./useAuthStore";
+import { useSettingsStore } from "./useSettingsStore";
 
 export const useChatStore = create((set, get) => ({
     messages: [],
     users: [],
     selectedUser: null,
+    lastMessageByUser: {},
     isUserLoading: false,
     isMessagesLoading: false,
 
@@ -30,6 +32,15 @@ export const useChatStore = create((set, get) => ({
         try {
             const res = await axiosInstance.get(`/messages/${userId}`);
             set({messages: res.data});
+            if (res.data.length > 0) {
+                const lastMessage = res.data[res.data.length - 1];
+                set({
+                    lastMessageByUser: {
+                        ...get().lastMessageByUser,
+                        [userId]: lastMessage,
+                    },
+                });
+            }
         } catch (error) {
             toast.error(error.response.data.message);
         }
@@ -45,6 +56,12 @@ export const useChatStore = create((set, get) => ({
             if (!exists) {
                  set({ messages: [...messages, res.data] });
             }
+            set({
+                lastMessageByUser: {
+                    ...get().lastMessageByUser,
+                    [selectedUser._id]: res.data,
+                },
+            });
         } catch (error) {
             toast.error(error.response.data.message);
             
@@ -61,12 +78,38 @@ export const useChatStore = create((set, get) => ({
 
             
             socket.on("newMessage",(newMessage) =>{
-                const isMessageFromSelectedUser = newMessage.senderId === selectedUser._id;
-                if (!isMessageFromSelectedUser) return;
-                console.log("SOCKET:", newMessage._id);
                 set({
-                    messages: [...get().messages, newMessage],
+                    lastMessageByUser: {
+                        ...get().lastMessageByUser,
+                        [newMessage.senderId]: newMessage,
+                    },
                 });
+                const isMessageFromSelectedUser = newMessage.senderId === selectedUser._id;
+                if (isMessageFromSelectedUser) {
+                    console.log("SOCKET:", newMessage._id);
+                    set({
+                        messages: [...get().messages, newMessage],
+                    });
+                }
+
+                const { notificationSounds } = useSettingsStore.getState();
+                if (notificationSounds && typeof document !== "undefined" && document.hasFocus()) {
+                    try {
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        oscillator.type = "sine";
+                        oscillator.frequency.value = 640;
+                        gain.gain.value = 0.04;
+                        oscillator.connect(gain);
+                        gain.connect(ctx.destination);
+                        oscillator.start();
+                        oscillator.stop(ctx.currentTime + 0.12);
+                        oscillator.onended = () => ctx.close();
+                    } catch {
+                        // Ignore audio errors.
+                    }
+                }
             });
         },
     

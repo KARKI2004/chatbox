@@ -3,11 +3,13 @@ import { useChatStore } from '../store/useChatStore';
 import SidebarSkeleton from './skeletons/SidebarSkeleton';
 import { Users } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 const Sidebar = () => {
-  const {getUsers, users, SelectedUser, setSelectedUser, isusersLoading} = useChatStore()
+  const {getUsers, users, selectedUser, setSelectedUser, isUserLoading, lastMessageByUser} = useChatStore()
 
   const {onlineUsers}= useAuthStore();
+  const { showMessagePreview } = useSettingsStore();
   const [showOnlineOnly,setShowOnlineOnly] = useState(false);
 
   useEffect(() => {
@@ -16,17 +18,16 @@ const Sidebar = () => {
 
 const filteredUsers = showOnlineOnly ? users.filter(user => onlineUsers.includes(user._id)) : users; 
 
-if(isusersLoading) return <SidebarSkeleton/>;
+if(isUserLoading) return <SidebarSkeleton/>;
 
 return (
-  <aside className = "h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200">
+  <aside className = "h-full w-20 lg:w-[293px] border-r border-base-300 flex flex-col transition-all duration-200">
     <div className="bottom-b border-base-300 w-full p-5">
     <div className = "flex items-center gap-2">
       <Users className= "size-6"/>
       <span className = "font-medium hidden lg:block">Contacts</span>
     </div>
 
-    {/* Online contacts filter toggle */}
 
     <div className="mt-3 hidden lg:flex items-center gap-2">
           <label className="cursor-pointer flex items-center gap-2">
@@ -35,6 +36,11 @@ return (
               checked={showOnlineOnly}
               onChange={(e) => setShowOnlineOnly(e.target.checked)}
               className="checkbox checkbox-sm"
+              style={{
+                ["--chkbg"]: "rgb(176,154,204)",
+                ["--chkfg"]: "rgb(176,154,204)",
+                borderColor: "rgb(176,154,204)"
+              }}
             />
             <span className="text-sm">Show online users </span>
           </label>
@@ -51,7 +57,7 @@ return (
             className={`
               w-full p-3 flex items-center gap-3
               hover:bg-base-300 transition-colors
-              ${SelectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
+              ${selectedUser?._id === user._id ? "bg-base-300 ring-1 ring-base-300" : ""}
             `}
           >
             <div className="relative mx-auto lg:mx-0">
@@ -68,11 +74,16 @@ return (
               )}
             </div>
 
-            {/* User info - only visible on larger screens */}
             <div className="hidden lg:block text-left min-w-0">
               <div className="font-medium truncate">{user.fullName}</div>
               <div className="text-sm text-zinc-400">
-                {onlineUsers.includes(user._id) ? "Online" : "Offline"}
+                {showMessagePreview
+                  ? (lastMessageByUser[user._id]?.text
+                      ? lastMessageByUser[user._id].text
+                      : lastMessageByUser[user._id]?.image
+                        ? "Photo"
+                        : "No messages yet")
+                  : (onlineUsers.includes(user._id) ? "Online" : "Offline")}
               </div>
             </div>
           </button>
